@@ -1,0 +1,6 @@
+{
+  "name": "AeroForge Supercar Studio",
+  "description": "Professional 3D supercar design tool with customizable engine specs, aerodynamic body kits, and high-quality image rendering capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
