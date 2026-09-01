@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Car, Download, Share2, Layers, Cpu, Cloud, PaintBucket, MountainSnow, Palette, Save, History, X, Clock, Play, Columns } from 'lucide-react';
+import { Car, Download, Share2, Layers, Cpu, Cloud, PaintBucket, MountainSnow, Palette, Save, History, X, Clock, Play, Columns, Glasses, FileText } from 'lucide-react';
 import { ENGINES, BODY_KITS, COLORS, STYLES, ENVIRONMENTS, CarSpecs } from './types';
 import { playEngineSound } from './audio';
 import jsPDF from 'jspdf';
@@ -20,8 +20,14 @@ export default function App() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   const [isCompareMode, setIsCompareMode] = useState(false);
+  const [isVRMode, setIsVRMode] = useState(false);
   const [compareSpecs, setCompareSpecs] = useState<CarSpecs | null>(null);
   const [activeConfig, setActiveConfig] = useState<'primary' | 'secondary'>('primary');
+
+  const [presets, setPresets] = useState<Array<{ name: string; specs: CarSpecs }>>([
+    { name: 'Track Monster', specs: { engine: 'V10 Naturally Aspirated', bodyKit: 'Aggressive Aero', color: 'Midnight Black', style: 'Carbon Fiber Weave', environment: 'Neon City Streets', ambientIntensity: 0.4 } },
+    { name: 'Eco Future', specs: { engine: 'Quad-Motor Electric', bodyKit: 'Minimalist Concept', color: 'Pearl White', style: 'Satin Matte', environment: 'Minimalist Studio', ambientIntensity: 0.8 } }
+  ]);
 
   const currentSpecs = (isCompareMode && activeConfig === 'secondary' && compareSpecs) ? compareSpecs : specs;
 
@@ -33,6 +39,11 @@ export default function App() {
     }
   };
 
+  const handleSavePreset = () => {
+    const name = `${currentSpecs.color.split(' ')[0]} ${currentSpecs.engine.split(' ')[0]}`;
+    setPresets(prev => [...prev, { name: `${name} ${prev.length + 1}`, specs: { ...currentSpecs } }]);
+  };
+
   const handleToggleCompare = () => {
     if (isCompareMode) {
       setIsCompareMode(false);
@@ -40,8 +51,20 @@ export default function App() {
       setCompareSpecs(null);
     } else {
       setIsCompareMode(true);
+      setIsVRMode(false);
       setCompareSpecs({ ...specs, color: COLORS[1] }); // Default to another color for clear distinction
       setActiveConfig('secondary');
+    }
+  };
+
+  const handleToggleVR = () => {
+    if (isVRMode) {
+      setIsVRMode(false);
+    } else {
+      setIsVRMode(true);
+      setIsCompareMode(false);
+      setActiveConfig('primary');
+      setCompareSpecs(null);
     }
   };
 
@@ -85,6 +108,14 @@ export default function App() {
     doc.text(`Style: ${specs.style}`, 40, 140);
     doc.text(`Environment: ${specs.environment}`, 40, 160);
     
+    if (specs.notes) {
+      doc.text('Design Notes:', 350, 80);
+      doc.setTextColor(200, 200, 200);
+      doc.setFontSize(12);
+      const splitNotes = doc.splitTextToSize(specs.notes, 400);
+      doc.text(splitNotes, 350, 100);
+    }
+    
     doc.addImage(imageUrl, 'PNG', 40, 200, 720, 360, 'carImage', 'FAST');
     
     doc.save('supercar-design.pdf');
@@ -107,19 +138,53 @@ export default function App() {
     <div className="flex h-screen bg-[#050505] text-[#e0e0e0] font-sans overflow-hidden">
       
       {/* Sidebar Configurator */}
-      <aside className="w-80 flex-shrink-0 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col h-full overflow-y-auto">
-        <div className="p-6 border-b border-[#1f1f1f] flex items-center space-x-3">
-          <div className="w-8 h-8 rounded bg-[#1a1a1a] border border-[#333] flex items-center justify-center">
-            <Car className="w-4 h-4 text-white" />
+      {!isVRMode && (
+        <aside className="w-80 flex-shrink-0 bg-[#0a0a0a] border-r border-[#1f1f1f] flex flex-col h-full overflow-y-auto">
+          <div className="p-6 border-b border-[#1f1f1f] flex items-center space-x-3">
+            <div className="w-8 h-8 rounded bg-[#1a1a1a] border border-[#333] flex items-center justify-center">
+              <Car className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-[0.2em] text-white serif">AERO.STUDIO</h1>
+              <p className="text-[10px] text-[#666] uppercase tracking-[0.2em]">Pro Supercar Configurator</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-[0.2em] text-white serif">AERO.STUDIO</h1>
-            <p className="text-[10px] text-[#666] uppercase tracking-[0.2em]">Pro Supercar Configurator</p>
-          </div>
-        </div>
 
         <div className="flex-1 p-6 space-y-8">
           
+          <ConfigSection title="Saved Presets" icon={<Save className="w-4 h-4 text-[#888]" />}>
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-2">
+                {presets.map((preset, index) => (
+                  <button
+                    key={index}
+                    onClick={() => updateSpecs(() => ({ ...preset.specs }))}
+                    className="flex flex-col text-left px-3 py-2 rounded border bg-[#111] border-[#222] hover:border-[#444] transition-all group"
+                  >
+                    <span className="text-[10px] uppercase font-bold text-white mb-1 group-hover:text-[#00ff00] transition-colors">{preset.name}</span>
+                    <span className="text-[9px] text-[#666] font-mono">{preset.specs.engine} | {preset.specs.color}</span>
+                  </button>
+                ))}
+              </div>
+              <button 
+                onClick={handleSavePreset}
+                className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-[#1a1a1a] border border-[#333] text-[#888] text-[10px] uppercase font-bold rounded hover:text-white hover:border-[#888] transition-all"
+              >
+                <Save className="w-3 h-3" />
+                <span>Save Current as Preset</span>
+              </button>
+            </div>
+          </ConfigSection>
+
+          <ConfigSection title="Design Notes" icon={<FileText className="w-4 h-4 text-[#888]" />}>
+            <textarea
+              value={currentSpecs.notes || ''}
+              onChange={(e) => updateSpecs(s => ({ ...s, notes: e.target.value }))}
+              placeholder="Add your design notes here..."
+              className="w-full h-24 bg-[#111] border border-[#222] text-[#e0e0e0] text-xs p-3 rounded focus:outline-none focus:border-[#444] resize-none transition-colors"
+            />
+          </ConfigSection>
+
           <ConfigSection title="Power Unit Dynamics" icon={<Cpu className="w-4 h-4 text-[#888]" />}>
             <div className="flex justify-between items-center mb-3">
               <span className="text-[10px] text-[#555] uppercase tracking-[0.1em]">Engine Selection</span>
@@ -227,6 +292,7 @@ export default function App() {
 
         </div>
       </aside>
+      )}
 
       {/* Main Canvas Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#050505]">
@@ -241,6 +307,13 @@ export default function App() {
           </div>
           
           <div className="flex items-center space-x-3">
+             <button 
+               onClick={handleToggleVR}
+               className={`flex items-center space-x-2 px-3 py-1.5 border text-[10px] uppercase font-bold rounded transition-all ${isVRMode ? 'bg-white border-white text-black' : 'bg-[#111] border-[#222] text-[#888] hover:text-white'}`}
+             >
+               <Glasses className="w-3 h-3" />
+               <span>VR Mode</span>
+             </button>
              <button 
                onClick={handleToggleCompare}
                className={`flex items-center space-x-2 px-3 py-1.5 border text-[10px] uppercase font-bold rounded transition-all ${isCompareMode ? 'bg-white border-white text-black' : 'bg-[#111] border-[#222] text-[#888] hover:text-white'}`}
@@ -294,7 +367,23 @@ export default function App() {
         {/* Canvas */}
         <div className="flex-1 p-8 flex flex-col items-center justify-center relative overflow-hidden bg-[radial-gradient(circle_at_center,_#181818_0%,_#050505_100%)]">
           
-          {isCompareMode ? (
+          {isVRMode ? (
+            <div className="w-full h-full flex items-center justify-center bg-black gap-2 p-2 relative">
+               <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 bg-[#111] border border-[#333] text-white text-[10px] font-bold tracking-[0.2em] rounded uppercase shadow-2xl">
+                 Stereoscopic VR Mode
+               </div>
+               {/* Left Eye */}
+               <div className="w-1/2 h-full relative rounded-[3rem] overflow-hidden border-4 border-[#111] shadow-[inset_0_0_50px_rgba(0,0,0,1)]">
+                 <CarPreview specs={specs} eye="left" />
+                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
+               </div>
+               {/* Right Eye */}
+               <div className="w-1/2 h-full relative rounded-[3rem] overflow-hidden border-4 border-[#111] shadow-[inset_0_0_50px_rgba(0,0,0,1)]">
+                 <CarPreview specs={specs} eye="right" />
+                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
+               </div>
+            </div>
+          ) : isCompareMode ? (
             <div className="w-full h-full flex space-x-4">
               
               {/* Primary Config */}
@@ -418,6 +507,11 @@ export default function App() {
                             <span>AERO: {version.specs.bodyKit.split(' ')[0]}</span>
                             <span>ENV: {version.specs.environment.split(' ')[0]}</span>
                           </div>
+                          {version.specs.notes && (
+                            <div className="text-[10px] text-[#aaa] mt-2 italic bg-[#1a1a1a] p-2 rounded border border-[#222]">
+                              "{version.specs.notes}"
+                            </div>
+                          )}
                         </div>
                         <button
                           onClick={() => handleRestoreVersion(version.specs)}

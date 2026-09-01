@@ -10,7 +10,11 @@ const colorMap: Record<string, string> = {
   'Nardo Gray': '#5c5e60',
   'Electric Blue': '#0044ff',
   'Pearl White': '#f0f4f8',
-  'Lime Green': '#39ff14'
+  'Lime Green': '#39ff14',
+  'Candy Apple Red': '#8B0000',
+  'Satin Gold': '#d4af37',
+  'Matte Gunmetal': '#2a2a2a',
+  'Deep Ocean Teal': '#004b49'
 };
 
 const envMap: Record<string, string> = {
@@ -18,14 +22,16 @@ const envMap: Record<string, string> = {
   'Salt Flats at Sunset': 'sunset',
   'Alpine Mountain Pass': 'dawn',
   'Minimalist Studio': 'studio',
-  'Rainy Tokyo Night': 'city'
+  'Rainy Tokyo Night': 'city',
+  'Warehouse District': 'warehouse',
+  'Forest Road': 'forest'
 };
 
 function CarModel({ specs }: { specs: CarSpecs }) {
   const carColor = colorMap[specs.color] || '#ffffff';
   
-  const hasSpoiler = specs.bodyKit === 'Aggressive Aero' || specs.bodyKit === 'Widebody Track';
-  const isWidebody = specs.bodyKit === 'Widebody Track';
+  const hasSpoiler = specs.bodyKit === 'Aggressive Aero' || specs.bodyKit === 'Widebody Track' || specs.bodyKit === 'Vintage Rally' || specs.bodyKit === 'Cyber-Street';
+  const isWidebody = specs.bodyKit === 'Widebody Track' || specs.bodyKit === 'Cyber-Street';
   const isMinimalist = specs.bodyKit === 'Minimalist Concept';
 
   const bodyWidth = isWidebody ? 2.2 : 1.9;
@@ -88,8 +94,9 @@ function CarModel({ specs }: { specs: CarSpecs }) {
     const extrudeSettings = {
       depth: bodyWidth - 0.4,
       bevelEnabled: true,
-      bevelSegments: 16,
-      steps: 2,
+      bevelSegments: 32,
+      steps: 4,
+      curveSegments: 64,
       bevelSize: 0.2,
       bevelThickness: 0.2,
     };
@@ -180,15 +187,18 @@ function CarModel({ specs }: { specs: CarSpecs }) {
   );
 }
 
-export default function CarPreview({ specs }: { specs: CarSpecs }) {
+export default function CarPreview({ specs, eye }: { specs: CarSpecs, eye?: 'left' | 'right' }) {
   const preset = envMap[specs.environment] as any || 'studio';
+  
+  const camX = eye === 'left' ? 4.8 : eye === 'right' ? 5.2 : 5;
   
   return (
     <Canvas 
       id="car-canvas"
       shadows 
-      camera={{ position: [5, 2, 6], fov: 45 }} 
+      camera={{ position: [camX, 2, 6], fov: 45 }} 
       gl={{ preserveDrawingBuffer: true, antialias: true }}
+      dpr={[1, 2]}
       className="w-full h-full"
     >
       <color attach="background" args={['#050505']} />
