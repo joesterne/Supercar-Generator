@@ -12,9 +12,13 @@ async function startServer() {
   // API Route for generating car images
   app.post('/api/generate-car', async (req, res) => {
     try {
-      const { engine, bodyKit, color, style, environment } = req.body;
-      
-      const ai = new GoogleGenAI({ 
+      const { engine, bodyKit, color, style, environment } = req.body ?? {};
+
+      // Defaults keep a missing field from interpolating as the literal string "undefined",
+      // and the engine is part of the render brief (it was destructured but never used).
+      const prompt = `A highly detailed, photorealistic 3D render of a supercar powered by a ${engine || 'V8 Twin-Turbo'}, with a ${bodyKit || 'Sleek Touring'} body kit, painted in ${color || 'Midnight Black'}. The car has a ${style || 'Hyper-Futuristic'} aesthetic. The setting is ${environment || 'Minimalist Studio'}. Professional automotive photography, 8k resolution, dramatic lighting, showcasing aerodynamic features.`;
+
+      const ai = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY,
         httpOptions: {
           headers: {
@@ -22,8 +26,6 @@ async function startServer() {
           }
         }
       });
-
-      const prompt = `A highly detailed, photorealistic 3D render of a supercar with a ${bodyKit} body kit, painted in ${color}. The car has a ${style} aesthetic. The setting is ${environment}. Professional automotive photography, 8k resolution, dramatic lighting, showcasing aerodynamic features.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.1-flash-image',
@@ -78,4 +80,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});

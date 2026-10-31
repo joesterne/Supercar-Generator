@@ -1,8 +1,24 @@
+// One shared AudioContext for the whole page. Creating a new context per play (and
+// closing it on a timer) exhausts Chrome's small pool of concurrent contexts after a
+// few rapid "Rev Engine" clicks, and later sounds silently fail.
+let sharedCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!sharedCtx) {
+    sharedCtx = new AudioContextCtor();
+  }
+  if (sharedCtx.state === 'suspended') {
+    void sharedCtx.resume();
+  }
+  return sharedCtx;
+}
+
 export function playEngineSound(engineType: string) {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContext) return;
-  
-  const ctx = new AudioContext();
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
   const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();
   
@@ -70,8 +86,4 @@ export function playEngineSound(engineType: string) {
   
   osc.start(now);
   osc.stop(now + (engineType.includes('Electric') ? 2.0 : 1.5));
-  
-  setTimeout(() => {
-    ctx.close();
-  }, 2500);
 }

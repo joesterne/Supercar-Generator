@@ -1,11 +1,15 @@
 import { CarSpecs } from './types';
 import { Activity } from 'lucide-react';
 
+// Every value in ENGINES / BODY_KITS (src/types.ts) needs an entry here — a missing
+// key silently falls back to the V8 / Sleek Touring numbers and shows wrong stats.
 const engineStats: Record<string, { hp: number; base0to60: number }> = {
   'V8 Twin-Turbo': { hp: 720, base0to60: 2.8 },
   'V10 Naturally Aspirated': { hp: 640, base0to60: 3.0 },
   'V12 Hyper-hybrid': { hp: 1050, base0to60: 2.3 },
   'Quad-Motor Electric': { hp: 1914, base0to60: 1.85 },
+  'Boxer-6 Turbo': { hp: 580, base0to60: 3.1 },
+  'Hydrogen Fuel Cell': { hp: 670, base0to60: 2.9 },
 };
 
 const aeroStats: Record<string, { cd: number; timeMod: number }> = {
@@ -13,6 +17,8 @@ const aeroStats: Record<string, { cd: number; timeMod: number }> = {
   'Sleek Touring': { cd: 0.28, timeMod: 0 },
   'Widebody Track': { cd: 0.38, timeMod: -0.15 },
   'Minimalist Concept': { cd: 0.22, timeMod: 0.1 },
+  'Vintage Rally': { cd: 0.42, timeMod: -0.1 },
+  'Cyber-Street': { cd: 0.34, timeMod: -0.05 },
 };
 
 export default function PerformanceMetrics({ specs }: { specs: CarSpecs }) {

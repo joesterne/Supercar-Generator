@@ -37,44 +37,61 @@ function CarModel({ specs }: { specs: CarSpecs }) {
   const bodyWidth = isWidebody ? 2.2 : 1.9;
   const rideHeight = specs.bodyKit === 'Aggressive Aero' || isWidebody ? 0.15 : 0.25;
 
-  const paintMaterial = new THREE.MeshPhysicalMaterial({
-    color: carColor,
-    metalness: 0.8,
-    roughness: 0.1,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.05,
-  });
+  // Materials are created once and reused across renders; constructing five new
+  // THREE materials in the component body on every render leaked GPU programs.
+  // Only the paint color changes in place.
+  const materials = React.useMemo(() => ({
+    paint: new THREE.MeshPhysicalMaterial({
+      color: carColor,
+      metalness: 0.8,
+      roughness: 0.1,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+    }),
+    glass: new THREE.MeshPhysicalMaterial({
+      color: '#050505',
+      metalness: 0.9,
+      roughness: 0.0,
+      transmission: 1.0,
+      ior: 1.5,
+      thickness: 0.5,
+      transparent: true,
+      opacity: 0.8
+    }),
+    dark: new THREE.MeshStandardMaterial({
+      color: '#111',
+      roughness: 0.8,
+      metalness: 0.2,
+    }),
+    tailLight: new THREE.MeshStandardMaterial({
+      color: '#ff0000',
+      emissive: '#ff0000',
+      emissiveIntensity: 2,
+      toneMapped: false
+    }),
+    headLight: new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      emissive: '#ffffff',
+      emissiveIntensity: 2,
+      toneMapped: false
+    }),
+  }), []);
 
-  const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: '#050505',
-    metalness: 0.9,
-    roughness: 0.0,
-    transmission: 1.0,
-    ior: 1.5,
-    thickness: 0.5,
-    transparent: true,
-    opacity: 0.8
-  });
+  React.useEffect(() => {
+    materials.paint.color.set(carColor);
+  }, [materials, carColor]);
 
-  const darkMaterial = new THREE.MeshStandardMaterial({
-    color: '#111',
-    roughness: 0.8,
-    metalness: 0.2,
-  });
+  React.useEffect(() => {
+    return () => {
+      Object.values(materials).forEach(m => m.dispose());
+    };
+  }, [materials]);
 
-  const tailLightMaterial = new THREE.MeshStandardMaterial({
-    color: '#ff0000',
-    emissive: '#ff0000',
-    emissiveIntensity: 2,
-    toneMapped: false
-  });
-  
-  const headLightMaterial = new THREE.MeshStandardMaterial({
-    color: '#ffffff',
-    emissive: '#ffffff',
-    emissiveIntensity: 2,
-    toneMapped: false
-  });
+  const paintMaterial = materials.paint;
+  const glassMaterial = materials.glass;
+  const darkMaterial = materials.dark;
+  const tailLightMaterial = materials.tailLight;
+  const headLightMaterial = materials.headLight;
 
   const chassisGeometry = React.useMemo(() => {
     const shape = new THREE.Shape();
@@ -105,6 +122,13 @@ function CarModel({ specs }: { specs: CarSpecs }) {
     geom.center();
     return geom;
   }, [bodyWidth]);
+
+  // Dispose the replaced geometry when bodyWidth changes or the model unmounts.
+  React.useEffect(() => {
+    return () => {
+      chassisGeometry.dispose();
+    };
+  }, [chassisGeometry]);
 
   return (
     <group position={[0, rideHeight, 0]}>
@@ -187,14 +211,14 @@ function CarModel({ specs }: { specs: CarSpecs }) {
   );
 }
 
-export default function CarPreview({ specs, eye }: { specs: CarSpecs, eye?: 'left' | 'right' }) {
+export default function CarPreview({ specs, eye, id }: { specs: CarSpecs, eye?: 'left' | 'right', id?: string }) {
   const preset = envMap[specs.environment] as any || 'studio';
-  
+
   const camX = eye === 'left' ? 4.8 : eye === 'right' ? 5.2 : 5;
-  
+
   return (
-    <Canvas 
-      id="car-canvas"
+    <Canvas
+      id={id ?? 'car-canvas'}
       shadows 
       camera={{ position: [camX, 2, 6], fov: 45 }} 
       gl={{ preserveDrawingBuffer: true, antialias: true }}

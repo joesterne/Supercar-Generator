@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Car, Download, Share2, Layers, Cpu, Cloud, PaintBucket, MountainSnow, Palette, Save, History, X, Clock, Play, Columns, Glasses, FileText } from 'lucide-react';
+import { Car, Download, Share2, Layers, Cpu, PaintBucket, MountainSnow, Palette, Save, History, X, Clock, Play, Columns, Glasses, FileText } from 'lucide-react';
 import { ENGINES, BODY_KITS, COLORS, STYLES, ENVIRONMENTS, CarSpecs } from './types';
 import { playEngineSound } from './audio';
 import jsPDF from 'jspdf';
@@ -82,8 +82,28 @@ export default function App() {
     setIsHistoryModalOpen(false);
   };
 
+  // Every mounted preview has a unique canvas id; exports must target the ACTIVE
+  // configuration's canvas, not whichever duplicate id the DOM returns first.
+  const getActiveCanvas = () => {
+    const canvasId = isVRMode
+      ? 'car-canvas-left'
+      : isCompareMode && activeConfig === 'secondary'
+        ? 'car-canvas-secondary'
+        : 'car-canvas-primary';
+    return document.getElementById(canvasId) as HTMLCanvasElement | null;
+  };
+
+  const handleShare = async () => {
+    const summary = `AERO.STUDIO build — Engine: ${currentSpecs.engine} | Body: ${currentSpecs.bodyKit} | Color: ${currentSpecs.color} | Style: ${currentSpecs.style} | Environment: ${currentSpecs.environment}`;
+    try {
+      await navigator.clipboard.writeText(summary);
+    } catch {
+      // Clipboard unavailable (permissions or insecure context); no sensible fallback.
+    }
+  };
+
   const handleExportPDF = () => {
-    const canvas = document.getElementById('car-canvas') as HTMLCanvasElement;
+    const canvas = getActiveCanvas();
     if (!canvas) return;
     const imageUrl = canvas.toDataURL('image/png');
 
@@ -102,17 +122,17 @@ export default function App() {
     
     doc.setFontSize(14);
     doc.setTextColor(136, 136, 136); // #888888
-    doc.text(`Engine: ${specs.engine}`, 40, 80);
-    doc.text(`Body Kit: ${specs.bodyKit}`, 40, 100);
-    doc.text(`Color: ${specs.color}`, 40, 120);
-    doc.text(`Style: ${specs.style}`, 40, 140);
-    doc.text(`Environment: ${specs.environment}`, 40, 160);
-    
-    if (specs.notes) {
+    doc.text(`Engine: ${currentSpecs.engine}`, 40, 80);
+    doc.text(`Body Kit: ${currentSpecs.bodyKit}`, 40, 100);
+    doc.text(`Color: ${currentSpecs.color}`, 40, 120);
+    doc.text(`Style: ${currentSpecs.style}`, 40, 140);
+    doc.text(`Environment: ${currentSpecs.environment}`, 40, 160);
+
+    if (currentSpecs.notes) {
       doc.text('Design Notes:', 350, 80);
       doc.setTextColor(200, 200, 200);
       doc.setFontSize(12);
-      const splitNotes = doc.splitTextToSize(specs.notes, 400);
+      const splitNotes = doc.splitTextToSize(currentSpecs.notes, 400);
       doc.text(splitNotes, 350, 100);
     }
     
@@ -122,13 +142,13 @@ export default function App() {
   };
 
   const handleExportImage = () => {
-    const canvas = document.getElementById('car-canvas') as HTMLCanvasElement;
+    const canvas = getActiveCanvas();
     if (!canvas) return;
     const imageUrl = canvas.toDataURL('image/png');
-    
+
     const link = document.createElement('a');
     link.href = imageUrl;
-    link.download = `supercar-${specs.color.replace(/\s+/g, '-').toLowerCase()}-${specs.bodyKit.replace(/\s+/g, '-').toLowerCase()}.png`;
+    link.download = `supercar-${currentSpecs.color.replace(/\s+/g, '-').toLowerCase()}-${currentSpecs.bodyKit.replace(/\s+/g, '-').toLowerCase()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -341,7 +361,7 @@ export default function App() {
                )}
              </button>
              <div className="w-px h-6 bg-[#222] mx-2"></div>
-             <button className="flex items-center space-x-2 px-3 py-1.5 bg-[#111] border border-[#222] text-[#888] text-[10px] uppercase font-bold rounded hover:text-white transition-all">
+             <button onClick={handleShare} className="flex items-center space-x-2 px-3 py-1.5 bg-[#111] border border-[#222] text-[#888] text-[10px] uppercase font-bold rounded hover:text-white transition-all">
                <Share2 className="w-3 h-3" />
                <span>Share Project</span>
              </button>
@@ -374,12 +394,12 @@ export default function App() {
                </div>
                {/* Left Eye */}
                <div className="w-1/2 h-full relative rounded-[3rem] overflow-hidden border-4 border-[#111] shadow-[inset_0_0_50px_rgba(0,0,0,1)]">
-                 <CarPreview specs={specs} eye="left" />
+                 <CarPreview specs={specs} eye="left" id="car-canvas-left" />
                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
                </div>
                {/* Right Eye */}
                <div className="w-1/2 h-full relative rounded-[3rem] overflow-hidden border-4 border-[#111] shadow-[inset_0_0_50px_rgba(0,0,0,1)]">
-                 <CarPreview specs={specs} eye="right" />
+                 <CarPreview specs={specs} eye="right" id="car-canvas-right" />
                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.6)_100%)] pointer-events-none"></div>
                </div>
             </div>
@@ -392,7 +412,7 @@ export default function App() {
                 className={`flex-1 relative rounded border bg-[#0a0a0a]/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all ${activeConfig === 'primary' ? 'border-[#888] ring-1 ring-[#888]' : 'border-[#222] opacity-50 cursor-pointer hover:opacity-80'}`}
               >
                 <div className="absolute top-4 left-4 z-10 px-2 py-1 bg-[#111] border border-[#333] text-white text-[10px] font-bold tracking-wider rounded uppercase">Config A</div>
-                <CarPreview specs={specs} />
+                <CarPreview specs={specs} id="car-canvas-primary" />
                 <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end pointer-events-none">
                   <div>
                     <div className="text-[10px] font-bold tracking-[0.2em] text-[#888] uppercase mb-1">Project {specs.style.split(' ')[0]}</div>
@@ -411,7 +431,7 @@ export default function App() {
                 className={`flex-1 relative rounded border bg-[#0a0a0a]/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all ${activeConfig === 'secondary' ? 'border-[#888] ring-1 ring-[#888]' : 'border-[#222] opacity-50 cursor-pointer hover:opacity-80'}`}
               >
                 <div className="absolute top-4 right-4 z-10 px-2 py-1 bg-[#111] border border-[#333] text-white text-[10px] font-bold tracking-wider rounded uppercase">Config B</div>
-                {compareSpecs && <CarPreview specs={compareSpecs} />}
+                {compareSpecs && <CarPreview specs={compareSpecs} id="car-canvas-secondary" />}
                 <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end pointer-events-none">
                   <div>
                     <div className="text-[10px] font-bold tracking-[0.2em] text-[#888] uppercase mb-1">Project {compareSpecs?.style.split(' ')[0]}</div>
@@ -428,7 +448,7 @@ export default function App() {
           ) : (
             <div className="w-full h-full relative rounded border border-[#222] bg-[#0a0a0a]/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col items-center justify-center">
               
-              <CarPreview specs={specs} />
+              <CarPreview specs={specs} id="car-canvas-primary" />
 
               {/* Spec overlay */}
               <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end pointer-events-none">
